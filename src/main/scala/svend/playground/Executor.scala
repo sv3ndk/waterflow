@@ -6,7 +6,8 @@ package svend.playground
 object Executor {
 
   def run(dag: Dag): Unit = {
-    println(dag)
+    println("Running this DAG:")
+    println(dag.asTreeString())
   }
 
 }
