@@ -1,28 +1,27 @@
 package svend.playground.usecases
 
-import svend.playground.Dag
-import svend.playground.Operator.*
+import svend.playground.dag.Dag
+import svend.playground.dag.Task.*
 
 object UseCase1 {
 
-  // this creates this kind of structure:
+  lazy val dag = Dag {
 
-  // LocalOperator(hello - 11,ls)
-  //  SparkOperator(hello 21,ls)
-  //    LocalOperator(hello 31,ls)
-  //  LocalOperator(hello 22,ls)
-  //    SshOperator(hello 32,ls)
-
-  lazy val dag = {
-
-    // technically, this returns hello 11, with its children wrapped
-    val b1 = LocalOperator("hello - 11", "ls") >>: SparkOperator("hello 21", "ls") >>: LocalOperator("hello 31", "ls")
+    val local11 = LocalTask("hello - 11", "ls")
+    val spark21 = SparkTask("hello 21", "ls")
+    val local31 = LocalTask("hello 31", "ls")
 
     // to this attaches one more child, hello 22 and its own child, to hello 11
-    val b2 = b1 >>: LocalOperator("hello 22", "ls") >>: SshOperator("hello 32", "ls")
+    val local22 = LocalTask("hello 22", "ls")
+    val ssh32 = SshTask("hello 32", "ls")
 
-    b2
+    List(
+      local11 >> spark21,
+      spark21 >> local31,
+
+      local22 >> ssh32
+    )
+
   }
-
 
 }

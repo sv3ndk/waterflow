@@ -1,42 +1,69 @@
-package svend.playground
+package svend.playground.dag
+
+import scala.collection.MapView
+import scala.annotation.tailrec
 
 /**
  * Container of the tree of operators to execute
  *
- * The >>: is not really ideal because it builds the tree directly
- * -> we can place each node at only one place, if we place a
- * node at several place to express "more dependencies", we actually
- * add that node several times :(
- *
- * What we would really want to do is express the dependencies of the node,
- * with redundancies and all, and _then_ build a DAG out of that ...
- *
  */
-case class Dag(operator: Operator, children: Set[Dag] = Set.empty) {
 
-  // Dag >>: Dag(this)
-  def >>:(parent: Dag): Dag = parent.copy(children = parent.children + this)
+case class Dag private(sortedTasks: List[Task])
 
-  // operator >>: Dag(this)
-  def >>:(other: Operator): Dag = Dag(other) >>: this
+object Dag {
 
-  def asTreeString(indent: Int = 0): String = {
-    val currentNode = (" " * indent) + operator.toString + "\n"
-    children.foldLeft(currentNode)((acc, c) => acc + c.asTreeString(indent + 2))
+  def apply(deps: => List[Dependency]): Dag = {
+
+    // task and their upstream task, not including orphans (i.e. taks without upstream)
+    val tasksWithUpstream: Map[Task, List[Task]] = deps
+      .groupBy(_.toTask)
+      .view.mapValues(deps => deps.map(dep => dep.fromTask))
+      .toMap
+
+    // same as above, but including any orphans
+    val allTasksWithUpstream: Map[Task, List[Task]] = deps
+      .map(_.fromTask)
+      .foldLeft(tasksWithUpstream) {
+        case (acc, task) => if acc.contains(task) then acc else acc + (task -> List())
+      }
+
+    // provide an order for executing the tasks that respects the dependencies
+    @tailrec def linearize(acc: List[Task], remaining: Map[Task, List[Task]]): List[Task] = {
+
+      if (remaining.isEmpty)
+        acc
+      else {
+
+        val (noUpstream, blockedTask) = remaining.partition {
+          case (_, upstreams) => upstreams.isEmpty
+        }
+
+        // TODO: if freeTasks is empty here, we're not making progress, and it means there are cycles
+        // in the dependencies => should blow up
+
+        val freeTasks = noUpstream.keys.toList
+        val stillBlocked = blockedTask.map { case (task, upstream) => (task, upstream diff freeTasks) }
+
+        linearize(acc ++ freeTasks, stillBlocked)
+
+      }
+    }
+
+    Dag(linearize(List.empty, allTasksWithUpstream))
   }
+}
+
+
+enum Task(val label: String) {
+
+  case LocalTask(l: String, command: String) extends Task(l)
+  case SparkTask(l: String, submitCommand: String) extends Task(l)
+  case SshTask(l: String, shellCommand: String) extends Task(l)
+
+  private[dag] case RootTask extends Task("root")
+
+  def >>(downStreamOperator: Task): Dependency = Dependency(this, downStreamOperator)
 
 }
 
-enum Operator(val label: String) {
-
-  case LocalOperator(l: String, command: String) extends Operator(l)
-  case SparkOperator(l: String, submitCommand: String) extends Operator(l)
-  case SshOperator(l: String, shellCommand: String) extends Operator(l)
-
-  // Dag >> operator(this)
-  def >>:(dag: Dag): Dag = dag >>: Dag(this)
-
-  // operator >> operator(this)
-  def >>:(operator: Operator): Dag = operator >>: Dag(this)
-
-}
+case class Dependency(fromTask: Task, toTask: Task)
