@@ -1,58 +1,75 @@
 package svend.playground.dag
 
-import scala.collection.MapView
 import scala.annotation.tailrec
+import scala.collection.MapView
 
 /**
  * Container of the tree of operators to execute
- *
  */
+case class Dag private(tasksWithUpstreams: Map[Task, List[Task]]) {
 
-case class Dag private(sortedTasks: List[Task])
+  /** list of task that currently have no dependencies */
+  def freeTasks: List[Task] = {
+    tasksWithUpstreams
+      .filter { case (task, upstreams) => upstreams.isEmpty }
+      .keys
+      .toList
+  }
+
+  /** Remove all free tasks from that Dag, both as a node and a dependency */
+  def withFreeTasksRemoved: Dag = {
+
+    val remainingTasks: Map[Task, List[Task]] = tasksWithUpstreams
+      .filter { case (task, upstreams) => upstreams.nonEmpty }
+      .map { case (task, upstream) => (task, upstream diff freeTasks) }
+
+    Dag(remainingTasks)
+  }
+
+  export tasksWithUpstreams.isEmpty
+}
 
 object Dag {
 
-  def apply(deps: => List[Dependency]): Dag = {
+  /**
+   * Builds a Dag out of a List of Task dependencies
+   */
+  def apply(deps: => List[Dependency]): Either[IllegalArgumentException, Dag] = {
 
-    // task and their upstream task, not including orphans (i.e. taks without upstream)
+    import Task.Noop
+
+    // task and their upstream task, not including orphans (i.e. tasks without upstream)
     val tasksWithUpstream: Map[Task, List[Task]] = deps
       .groupBy(_.toTask)
-      .view.mapValues(deps => deps.map(dep => dep.fromTask))
+      .view.mapValues(deps => deps.map(dep => dep.fromTask).filter(_ != Noop))
       .toMap
 
-    // same as above, but including any orphans
+    // same as above, but including any orphans (which can only potentially come from the "from" part)
     val allTasksWithUpstream: Map[Task, List[Task]] = deps
       .map(_.fromTask)
+      .filter(_ != Noop)
       .foldLeft(tasksWithUpstream) {
         case (acc, task) => if acc.contains(task) then acc else acc + (task -> List())
       }
 
-    // provide an order for executing the tasks that respects the dependencies
-    @tailrec def linearize(acc: List[Task], remaining: Map[Task, List[Task]]): List[Task] = {
-
-      if (remaining.isEmpty)
-        acc
-      else {
-
-        val (noUpstream, blockedTask) = remaining.partition {
-          case (_, upstreams) => upstreams.isEmpty
-        }
-
-        // TODO: if freeTasks is empty here, we're not making progress, and it means there are cycles
-        // in the dependencies => should blow up
-
-        val freeTasks = noUpstream.keys.toList
-        val stillBlocked = blockedTask.map { case (task, upstream) => (task, upstream diff freeTasks) }
-
-        linearize(acc ++ freeTasks, stillBlocked)
-
-      }
-    }
-
-    Dag(linearize(List.empty, allTasksWithUpstream))
+    val dag = this (allTasksWithUpstream)
+    if (linearizable(dag))
+      Right(dag)
+    else
+      Left(new IllegalArgumentException("The task dependencies contain cycles"))
   }
-}
 
+  /**
+   * Validates that the dependencies between those tasks allow to linearize them, i.e.
+   */
+  @tailrec
+  def linearizable(dag: Dag): Boolean = {
+    if (dag.isEmpty) true
+    else if (dag.freeTasks.isEmpty) false
+    else linearizable(dag.withFreeTasksRemoved)
+  }
+
+}
 
 enum Task(val label: String) {
 
@@ -60,7 +77,8 @@ enum Task(val label: String) {
   case SparkTask(l: String, submitCommand: String) extends Task(l)
   case SshTask(l: String, shellCommand: String) extends Task(l)
 
-  private[dag] case RootTask extends Task("root")
+  /** Task that does nothing, handy for communicating tasks with no upstream */
+  case Noop extends Task("noop")
 
   def >>(downStreamOperator: Task): Dependency = Dependency(this, downStreamOperator)
 

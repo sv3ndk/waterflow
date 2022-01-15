@@ -3,7 +3,9 @@ Waterflow, a toy app vaguely inspired from Airflow as an excuse to practise basi
 Technique to (try to) use:
 * by name parameters with single argument (for the task)
 * case class, enumeration, pattern matching
-* basic sbt 
+* basic sbt
+* exporting methods
+
 * type classes, given/using
 * context bound in parametric functions or type
 * Selectable 
@@ -19,14 +21,15 @@ DONE:
 * `Dag { oneTask }` with a body build by-name, received by an interpreter which prints it
 * add an `>>` operator to declare dependencies between task (all tasks must be linked for now: orphans are currently impossible)
 * build a dag with `Dag.apply(List[Task])`, building a lineage out of the dependencies.
+* add the possibility to declare orphan tasks (with Noop parent)
 
 ONGOING:
-* transform linerization algo in test for no cycle + test the operator with scalaCheck, but keep a DAG defined as a set of edges
+* Check for cycles when building DAG + test the operator with scalaCheck.
 
 TODO:
 
 * interpreter (maybe that could just be main?) start a set of workers, to which the tasks are dispatched
-* add the possibility to declare orphan tasks
+
 * the `run()` method of hte runner demands that a `Runner[T]` exist for any reicived task `T`
 * one of the task is initialized with a repeated param list (maybe it's just the list of name it print "hello" to or so)
 * one of the task is accessing a Json DB (just an internal hashmap), use `Selectable` to parse various types into some case classes. Test the parsing with ScalaCheck
