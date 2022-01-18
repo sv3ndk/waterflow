@@ -23,7 +23,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
     emptyDag.size must be (0)
   }
 
-  it must "be linearizable when built with any set of n independent tasks" in {
+  it must "be linearizable and of size n when built with any set of n independent tasks" in {
     forAll(taskListGen) {
       (tasks: Seq[Task]) => {
         val dependencies = tasks.map(Dependency.independent)

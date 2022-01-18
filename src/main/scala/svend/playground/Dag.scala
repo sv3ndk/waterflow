@@ -20,7 +20,7 @@ enum Task(val label: String) {
 }
 
 /**
- * Dependency of a downstream task depending on an upstream task
+ * Dependency of a downstream task depending on an upstream one
  */
 case class Dependency(upstream: Task, downstream: Task)
 
@@ -36,12 +36,11 @@ object Dependency {
 case class Dag private(tasksWithUpstreams: Map[Task, Seq[Task]]) {
 
   /** list of tasks that currently have no dependencies */
-  def freeTasks: Seq[Task] = {
+  def freeTasks: Seq[Task] =
     tasksWithUpstreams
       .filter { case (task, upstreams) => upstreams.isEmpty }
       .keys
       .toSeq
-  }
 
   /** Copy of this DAG with all free tasks removed */
   def withFreeTasksRemoved: Dag = {
@@ -71,7 +70,7 @@ object Dag {
       .view.mapValues(deps => deps.map(dep => dep.upstream).filter(_ != Task.Noop))
       .toMap
 
-    // same as above, augmented with any "before"
+    // same as above, augmented with any independent "root" upstream task
     val allTasksWithUpstream: Map[Task, Seq[Task]] = deps
       .map(_.upstream)
       .filter(_ != Task.Noop)
@@ -95,11 +94,10 @@ object Dag {
    * exists at least one sequencial scheduling of the tasks that respects all dependencies.s
    */
   @tailrec
-  def linearizable(dag: Dag): Boolean = {
+  def linearizable(dag: Dag): Boolean =
     if (dag.isEmpty) true
     else if (dag.freeTasks.isEmpty) false
     else linearizable(dag.withFreeTasksRemoved)
-  }
 
 }
 
