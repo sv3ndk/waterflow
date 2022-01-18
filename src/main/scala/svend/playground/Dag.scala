@@ -27,6 +27,7 @@ case class Dag private(tasksWithUpstreams: Map[Task, List[Task]]) {
   }
 
   export tasksWithUpstreams.isEmpty
+  export tasksWithUpstreams.size
 }
 
 object Dag {
@@ -34,7 +35,7 @@ object Dag {
   /**
    * Builds a Dag out of a List of Task dependencies
    */
-  def apply(deps: => List[Dependency]): Either[IllegalArgumentException, Dag] = {
+  def apply(deps: => List[Dependency] = Nil): Either[IllegalArgumentException, Dag] = {
 
     import Task.Noop
 
@@ -59,6 +60,10 @@ object Dag {
       Left(new IllegalArgumentException("The task dependencies contain cycles"))
   }
 
+  def apply(singleDep: Dependency): Either[IllegalArgumentException, Dag] = {
+    this(List(singleDep))
+  }
+
   /**
    * Validates that the dependencies between those tasks allow to linearize them, i.e.
    */
@@ -77,7 +82,9 @@ enum Task(val label: String) {
   case SparkTask(l: String, submitCommand: String) extends Task(l)
   case SshTask(l: String, shellCommand: String) extends Task(l)
 
-  /** Task that does nothing, handy for communicating tasks with no upstream */
+  /**
+   * Task that does nothing, handy for communicating tasks with no upstream.
+   * */
   case Noop extends Task("noop")
 
   def >>(downStreamOperator: Task): Dependency = Dependency(this, downStreamOperator)

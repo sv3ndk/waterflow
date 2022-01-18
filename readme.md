@@ -25,6 +25,7 @@ DONE:
 
 ONGOING:
 * Check for cycles when building DAG + test the operator with scalaCheck.
+* Make sure any dependency towards noop is ignored and removed during DAG construction
 
 TODO:
 
