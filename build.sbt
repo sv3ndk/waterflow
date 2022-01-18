@@ -6,7 +6,7 @@ lazy val waterflow = project
 
     libraryDependencies ++= Seq(
       "org.scalatest" %% "scalatest" % "3.2.10" % "test",
-      "org.scalacheck" %% "scalacheck" % "1.15.4" % "test"
+      "org.scalatestplus" %% "scalacheck-1-15" % "3.2.9.0" % "test"
     )
 
   )
