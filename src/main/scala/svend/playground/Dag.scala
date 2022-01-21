@@ -33,22 +33,21 @@ object Dependency {
  * A DAG is defined as a map from all tasks to be executed to the list of
  * their upstream dependencies.
  */
-case class Dag private(tasksWithUpstreams: Map[Task, Seq[Task]]) {
+case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
 
   /** list of tasks that currently have no dependencies */
-  def freeTasks: Seq[Task] =
+  def freeTasks: Set[Task] =
     tasksWithUpstreams
       .filter { case (task, upstreams) => upstreams.isEmpty }
       .keys
-      .toSeq
+      .toSet
 
   /** Copy of this DAG with all free tasks removed */
   def withFreeTasksRemoved: Dag = {
-
-    val remainingTasks: Map[Task, Seq[Task]] = tasksWithUpstreams
-      .filter { case (task, upstreams) => upstreams.nonEmpty }
-      .map { case (task, upstream) => (task, upstream diff freeTasks) }
-
+    val remainingTasks: Map[Task, Set[Task]] = for {
+      (task, upstreams) <- tasksWithUpstreams
+      if upstreams.nonEmpty
+    } yield (task -> (upstreams diff freeTasks))
     Dag(remainingTasks)
   }
 
@@ -64,18 +63,18 @@ object Dag {
   def apply(deps: => Seq[Dependency] = Nil): Either[IllegalArgumentException, Dag] = {
 
     // tasks and their upstream tasks, for all tasks having at least one upstream
-    val tasksWithUpstream: Map[Task, Seq[Task]] = deps
+    val tasksWithUpstream: Map[Task, Set[Task]] = deps
       .groupBy(_.downstream)
       .filter((task, _) => task != Task.Noop)
-      .view.mapValues(deps => deps.map(dep => dep.upstream).filter(_ != Task.Noop))
+      .view.mapValues(deps => deps.map(dep => dep.upstream).filter(_ != Task.Noop).toSet)
       .toMap
 
     // same as above, augmented with any independent "root" upstream task
-    val allTasksWithUpstream: Map[Task, Seq[Task]] = deps
+    val allTasksWithUpstream: Map[Task, Set[Task]] = deps
       .map(_.upstream)
       .filter(_ != Task.Noop)
       .foldLeft(tasksWithUpstream) {
-        case (acc, task) => if acc.contains(task) then acc else acc + (task -> Nil)
+        case (acc, task) => if acc.contains(task) then acc else acc + (task -> Set.empty)
       }
 
     val dag = this (allTasksWithUpstream)

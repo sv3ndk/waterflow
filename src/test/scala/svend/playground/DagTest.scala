@@ -1,56 +1,98 @@
 package svend.playground
 
-import svend.playground.dag.Dag
-import svend.playground.dag.*
-import svend.playground.dag.Task.*
-import org.scalatest.flatspec.*
+import org.scalacheck.{Gen, Shrink}
 import org.scalatest.EitherValues.*
+import org.scalatest.flatspec.*
 import org.scalatest.matchers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import org.scalacheck.Gen
-import DataGen.*
+import svend.playground.DataGen.*
+import svend.playground.dag.*
+import svend.playground.dag.Task.*
+
+import scala.util.Random
 
 class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChecks {
 
   behavior of "A DAG"
 
-  it must "be empty when built with no dependencies" in {
-
+  it must "be valid and empty when built from no dependencies" in {
     // EitherValues allows to access an Either that should be right
     val emptyDag: Dag = Dag().value
 
     assert(emptyDag.isEmpty)
-    emptyDag.size must be (0)
+    emptyDag.size mustBe 0
   }
 
-  it must "be linearizable and of size n when built with any set of n independent tasks" in {
+  it must "be valid and of size n when built from any set of n independent tasks" in {
     forAll(taskListGen) {
       (tasks: Seq[Task]) => {
         val dependencies = tasks.map(Dependency.independent)
-        val dag = Dag(dependencies).value
+        val validDag = Dag(dependencies).value
 
-        dag.size must be (tasks.size)
-        Dag.linearizable(dag) must be(true)
+        validDag.size mustBe tasks.size
+        Dag.linearizable(validDag) must be(true)
       }
     }
   }
 
-  it must "be empty when built with only dependencies towards Noop" in {
-    // weird case but valid: any Dag with only Noop tasks => should result in empty DAG
-    forAll(Gen.chooseNum(0, 2000)) {(dagSize: Int) =>
+  it must "have size n when built from any sequence of tasks that depend each on the next one" in {
+    forAll(sequencialTaskGen) {
+      (dependencies: Seq[Dependency]) => {
+        val validDag = Dag(dependencies).value
+
+        validDag.size mustBe dependencies.size
+        Dag.linearizable(validDag) must be(true)
+      }
+    }
+  }
+
+  it must "be empty when built from only dependencies made of Noop" in {
+    // weird case but actually valid: any Dag with only Noop tasks => should result in empty DAG
+    forAll(Gen.chooseNum(0, 2000)) { (dagSize: Int) =>
       val emptyDag = Dag(List.fill(dagSize)(Dependency(Noop, Noop))).value
 
       assert(emptyDag.isEmpty)
-      emptyDag.size must be (0)
+      emptyDag.size mustBe 0
       Dag.linearizable(emptyDag) must be(true)
     }
   }
 
+  it must "result in the same DAG when dependencies are provided in a different order" in {
+    forAll(sequencialTaskGen) {
+      (dependencies: Seq[Dependency]) => {
+        val shuffled = dependencies.sortBy(_ => Random.nextInt())
 
-  it must "have size n when built with any sequence of tasks that depend each on the next one" in (pending)
+        Dag(dependencies).value mustBe Dag(shuffled).value
+      }
+    }
+  }
 
-  it must "result in the same DAG when dependencies are provided in a different order" in (pending)
+  // Note to self: nuclear option to solve generated-values post-condition after shrinking:
+  // disable shrinking entirely:
+  // implicit val noShrink: Shrink[Seq[Dependency]] = Shrink.shrinkAny
 
-  it must "refuse any set >= 2 of tasks that form a cycle" in (pending)
+  it must "refuse any set >= 2 of tasks that form a cycle" in {
+    forAll(cyclicalDependenciesGen) {
+      (cyclicDependencies: Seq[Dependency]) =>
+        val invalidDag = Dag(cyclicDependencies).left.value
+        invalidDag.getMessage mustBe "The task dependencies contain cycles"
+    }
+  }
 
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

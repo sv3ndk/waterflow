@@ -43,4 +43,35 @@ object DataGen {
 
   val taskListGen: Gen[Seq[Task]] = Gen.listOf(taskGen)
 
+  /**
+   * Random list of dependencies forming a linear sequence of tasks
+   */
+  val sequencialTaskGen: Gen[Seq[Dependency]] = taskListGen
+    .map {
+      case Nil => Nil
+      case firstTask :: rest =>
+        rest.foldLeft(Seq(Dependency.independent(firstTask))) {
+          case ((d@Dependency(upStream, downStream)) :: rest, task) => Dependency(downStream, task) :: d :: rest
+        }
+    }
+
+  /**
+   * Random list of dependencies containing cycles
+   */
+  val cyclicalDependenciesGen: Gen[Seq[Dependency]] = {
+    val withCycles = for {
+      deps <- sequencialTaskGen
+      if deps.size > 2
+      numCycles <- Gen.chooseNum(1, deps.size - 2) // with 3 tasks, we can create 1 cycle
+      cycles = deps
+        .filter(_.upstream != Noop)
+        .sliding(2)
+        .map { case List(Dependency(_, down2), Dependency(up1, _)) => Dependency(down2, up1) }
+    } yield deps ++ cycles
+
+    // TIL: suchThat is necessary for making sure some conditions of the generator remain true
+    // after shrinking.
+    withCycles.suchThat(_.size > 2)
+  }
+
 }
