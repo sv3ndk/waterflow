@@ -1,7 +1,7 @@
 package svend.playground
 
 import org.scalacheck.{Gen, Shrink}
-import org.scalatest.EitherValues.*
+import org.scalatest.TryValues.*
 import org.scalatest.flatspec.*
 import org.scalatest.matchers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
@@ -17,7 +17,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
 
   it must "be valid and empty when built from no dependencies" in {
     // EitherValues allows to access an Either that should be right
-    val emptyDag: Dag = Dag().value
+    val emptyDag: Dag = Dag().success.value
 
     assert(emptyDag.isEmpty)
     emptyDag.size mustBe 0
@@ -27,7 +27,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
     forAll(taskListGen) {
       (tasks: Seq[Task]) => {
         val dependencies = tasks.map(Dependency.independent)
-        val validDag = Dag(dependencies).value
+        val validDag = Dag(dependencies).success.value
 
         validDag.size mustBe tasks.size
         Dag.linearizable(validDag) must be(true)
@@ -38,7 +38,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
   it must "have size n when built from any sequence of tasks that depend each on the next one" in {
     forAll(sequencialTaskGen) {
       (dependencies: Seq[Dependency]) => {
-        val validDag = Dag(dependencies).value
+        val validDag = Dag(dependencies).success.value
 
         validDag.size mustBe dependencies.size
         Dag.linearizable(validDag) must be(true)
@@ -49,7 +49,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
   it must "be empty when built from only dependencies made of Noop" in {
     // weird case but actually valid: any Dag with only Noop tasks => should result in empty DAG
     forAll(Gen.chooseNum(0, 2000)) { (dagSize: Int) =>
-      val emptyDag = Dag(List.fill(dagSize)(Dependency(Noop, Noop))).value
+      val emptyDag = Dag(List.fill(dagSize)(Dependency(Noop, Noop))).success.value
 
       assert(emptyDag.isEmpty)
       emptyDag.size mustBe 0
@@ -62,7 +62,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
       (dependencies: Seq[Dependency]) => {
         val shuffled = dependencies.sortBy(_ => Random.nextInt())
 
-        Dag(dependencies).value mustBe Dag(shuffled).value
+        Dag(dependencies).success.value mustBe Dag(shuffled).success.value
       }
     }
   }
@@ -74,7 +74,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
   it must "refuse any set >= 2 of tasks that form a cycle" in {
     forAll(cyclicalDependenciesGen) {
       (cyclicDependencies: Seq[Dependency]) =>
-        val invalidDag = Dag(cyclicDependencies).left.value
+        val invalidDag = Dag(cyclicDependencies).failure.exception
         invalidDag.getMessage mustBe "The task dependencies contain cycles"
     }
   }

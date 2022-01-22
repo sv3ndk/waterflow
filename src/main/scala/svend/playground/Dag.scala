@@ -2,6 +2,7 @@ package svend.playground.dag
 
 import scala.annotation.tailrec
 import scala.collection.MapView
+import scala.util.{Failure, Success, Try}
 
 
 enum Task(val label: String) {
@@ -11,7 +12,7 @@ enum Task(val label: String) {
   case SshTask(host: String, port: Int, user: String, shellCommand: String) extends Task("Remote task over SSH")
 
   /**
-   * Task that does nothing, necessary for communicating tasks with no upstream.
+   * Task that does nothing, used as upstream of independent tasks.
    * */
   case Noop extends Task("Null task, not doing anything")
 
@@ -20,7 +21,7 @@ enum Task(val label: String) {
 }
 
 /**
- * Dependency of a downstream task depending on an upstream one
+ * Describes that upstream must be executed before downstream
  */
 case class Dependency(upstream: Task, downstream: Task)
 
@@ -30,19 +31,32 @@ object Dependency {
 }
 
 /**
- * A DAG is defined as a map from all tasks to be executed to the list of
- * their upstream dependencies.
+ * A DAG is defined as a map from all tasks to be executed associated to
+ * the list of their upstream dependencies.
  */
 case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
 
-  /** list of tasks that currently have no dependencies */
+  /**
+   * @return the tasks that currently have no dependencies => can be executed
+   */
   def freeTasks: Set[Task] =
     tasksWithUpstreams
       .filter { case (task, upstreams) => upstreams.isEmpty }
       .keys
       .toSet
 
-  /** Copy of this DAG with all free tasks removed */
+  /**
+   * @return one of the currently free tasks
+   */
+  def aFreeTask(): Option[Task] =
+    tasksWithUpstreams
+      .filter { case (task, upstreams) => upstreams.isEmpty }
+      .keys
+      .headOption
+
+  /**
+   * @return a copy of this DAG with all free tasks removed
+   */
   def withFreeTasksRemoved: Dag = {
     val remainingTasks: Map[Task, Set[Task]] = for {
       (task, upstreams) <- tasksWithUpstreams
@@ -51,6 +65,16 @@ case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
     Dag(remainingTasks)
   }
 
+  /**
+   * @return a copy of this DAG with that task removed
+   */
+  def withTaskRemoved(removedTask: Task): Dag =
+    Dag(tasksWithUpstreams
+      .removed(removedTask)
+      .view.mapValues(upstreams => upstreams - removedTask)
+      .toMap
+    )
+
   export tasksWithUpstreams.isEmpty
   export tasksWithUpstreams.size
 }
@@ -58,9 +82,10 @@ case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
 object Dag {
 
   /**
-   * Builds a Dag out of a List of Task dependencies. Noop is never included in the DAG.
+   * Builds a Dag out of a List of Task dependencies.
+   * Any Noop Task will not included in the DAG.
    */
-  def apply(deps: => Seq[Dependency] = Nil): Either[IllegalArgumentException, Dag] = {
+  def apply(deps: => Seq[Dependency] = Nil): Try[Dag] = {
 
     // tasks and their upstream tasks, for all tasks having at least one upstream
     val tasksWithUpstream: Map[Task, Set[Task]] = deps
@@ -79,12 +104,12 @@ object Dag {
 
     val dag = this (allTasksWithUpstream)
     if (linearizable(dag))
-      Right(dag)
+      Success(dag)
     else
-      Left(new IllegalArgumentException("The task dependencies contain cycles"))
+      Failure(new IllegalArgumentException("The task dependencies contain cycles"))
   }
 
-  def apply(singleDep: Dependency): Either[IllegalArgumentException, Dag] = {
+  def apply(singleDep: Dependency): Try[Dag] = {
     this (List(singleDep))
   }
 
@@ -99,4 +124,3 @@ object Dag {
     else linearizable(dag.withFreeTasksRemoved)
 
 }
-
