@@ -82,8 +82,8 @@ case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
 object Dag {
 
   /**
-   * Builds a Dag out of a List of Task dependencies.
-   * Any Noop Task will not included in the DAG.
+   * Builds a DAG out of a List of Task dependencies.
+   * Any Noop Task will not included.
    */
   def apply(deps: => Seq[Dependency] = Nil): Try[Dag] = {
 
@@ -91,7 +91,7 @@ object Dag {
     val tasksWithUpstream: Map[Task, Set[Task]] = deps
       .groupBy(_.downstream)
       .filter((task, _) => task != Task.Noop)
-      .view.mapValues(deps => deps.map(dep => dep.upstream).filter(_ != Task.Noop).toSet)
+      .view.mapValues(deps => deps.map(_.upstream).filter(_ != Task.Noop).toSet)
       .toMap
 
     // same as above, augmented with any independent "root" upstream task
@@ -115,7 +115,7 @@ object Dag {
 
   /**
    * Validates that the dependencies between those tasks allow to linearize them, i.e. there
-   * exists at least one sequencial scheduling of the tasks that respects all dependencies.s
+   * exists at least one sequencial scheduling of the tasks that respects all dependencies.
    */
   @tailrec
   def linearizable(dag: Dag): Boolean =

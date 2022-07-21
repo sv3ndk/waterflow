@@ -14,14 +14,14 @@ class Scheduler {
     @tailrec
     def doRun(currentDag: Dag, currentLog: Seq[RunLog]): Try[Seq[RunLog]] = {
       if (currentDag.isEmpty)
-        Success(currentLog)
+        Success(currentLog.reverse)
       else
         currentDag.aFreeTask() match {
           case Some(freeTask) =>
             val log = execute(freeTask)
-            doRun(currentDag.withTaskRemoved(freeTask), currentLog :+ log)
+            doRun(currentDag.withTaskRemoved(freeTask), log +: currentLog  )
           case None =>
-            Failure(new IllegalArgumentException(s"Could not run dag, no free task anymore. Current log: $currentLog. Current DAG: $currentDag"))
+            Failure(new IllegalArgumentException(s"Could not run dag, no free task anymore. Current log: $currentLog Current DAG: $currentDag"))
         }
     }
 
@@ -30,7 +30,7 @@ class Scheduler {
   }
 
   def execute(task: Task): RunLog = {
-    RunLog(s"Executing task ${task.label}, which always succeeds and finishes immediately. Details: $task")
+    RunLog(s"Executing '${task.label}', which always succeeds and finishes immediately. Details: $task")
   }
 
 }

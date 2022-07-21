@@ -19,7 +19,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
     // EitherValues allows to access an Either that should be right
     val emptyDag: Dag = Dag().success.value
 
-    assert(emptyDag.isEmpty)
+    emptyDag.isEmpty mustBe true
     emptyDag.size mustBe 0
   }
 
@@ -30,7 +30,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
         val validDag = Dag(dependencies).success.value
 
         validDag.size mustBe tasks.size
-        Dag.linearizable(validDag) must be(true)
+        Dag.linearizable(validDag) mustBe true
       }
     }
   }
@@ -41,7 +41,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
         val validDag = Dag(dependencies).success.value
 
         validDag.size mustBe dependencies.size
-        Dag.linearizable(validDag) must be(true)
+        Dag.linearizable(validDag) mustBe true
       }
     }
   }
@@ -51,9 +51,9 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
     forAll(Gen.chooseNum(0, 2000)) { (dagSize: Int) =>
       val emptyDag = Dag(List.fill(dagSize)(Dependency(Noop, Noop))).success.value
 
-      assert(emptyDag.isEmpty)
+      emptyDag.isEmpty mustBe true
       emptyDag.size mustBe 0
-      Dag.linearizable(emptyDag) must be(true)
+      Dag.linearizable(emptyDag) mustBe true
     }
   }
 
