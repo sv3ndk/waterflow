@@ -31,3 +31,8 @@ Find an excuse for using the following Scala techniques:
 * Opaque types: obtain the "speed" (controlling some Thread.sleep) and "capacity" (unused) config of each Worker from "config" (hard-coded case class). Config params are implemented with opaque types
 * union/intersection types: add possibility to customize Task by stacking traits on to them. Use pattern matching with union/intersection types in the Runner to react to that customization
 
+# How to run
+
+```sh
+sbt run
+```
