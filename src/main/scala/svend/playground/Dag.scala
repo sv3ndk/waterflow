@@ -16,7 +16,7 @@ enum Task(val label: String) {
    * */
   case Noop extends Task("Null task, not doing anything")
 
-  def >>(downstream: Task): Dependency = Dependency(this, downstream)
+  infix def >>(downstream: Task): Dependency = Dependency(this, downstream)
 
 }
 
