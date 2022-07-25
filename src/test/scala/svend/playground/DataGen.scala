@@ -51,7 +51,8 @@ object DataGen {
       case Nil => Nil
       case firstTask :: rest =>
         rest.foldLeft(Seq(Dependency.independent(firstTask))) {
-          case ((d@Dependency(upStream, downStream)) :: rest, task) => Dependency(downStream, task) :: d :: rest
+          // chaining all the tasks as depending each on the next one
+          case ((dep@Dependency(upStream, downStream)) :: tail, task) => Dependency(downStream, task) :: dep :: tail
         }
     }
 

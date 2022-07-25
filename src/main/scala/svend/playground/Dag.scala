@@ -48,11 +48,7 @@ case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
   /**
    * @return one of the currently free tasks
    */
-  def aFreeTask(): Option[Task] =
-    tasksWithUpstreams
-      .filter { case (task, upstreams) => upstreams.isEmpty }
-      .keys
-      .headOption
+  def aFreeTask(): Option[Task] = freeTasks.headOption
 
   /**
    * @return a copy of this DAG with all free tasks removed
@@ -71,7 +67,7 @@ case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
   def withTaskRemoved(removedTask: Task): Dag =
     Dag(tasksWithUpstreams
       .removed(removedTask)
-      .view.mapValues(upstreams => upstreams - removedTask)
+       .view.mapValues(upstreams => upstreams - removedTask)
       .toMap
     )
 
