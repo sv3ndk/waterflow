@@ -2,9 +2,12 @@ package svend.playground.usecases
 
 import svend.playground.dag.{Dag, Dependency}
 import svend.playground.dag.Task.*
-import svend.playground.Scheduler
+import svend.playground.{FailedTask, Scheduler}
 import svend.playground.usecases.UseCase1.dag
-import scala.util.Try
+
+import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
+import scala.concurrent.{ExecutionContext, Future}
+import scala.util.{Failure, Success, Try}
 
 /**
  * Example of the API usage
@@ -30,15 +33,32 @@ object UseCase1 {
   }
 
   @main def main(): Unit = {
+    
     println("Starting Waterflow for use case 1")
     val scheduler = Scheduler()
 
-    val logs = for {
-      theDag <- dag
-      logs <- scheduler.run(theDag)
-    } yield logs
+    val javaExecutor = Executors.newFixedThreadPool(2);
+    given ec: ExecutionContext = ExecutionContext.fromExecutor(javaExecutor)
 
-    logs.get.foreach(println)
+    dag.foreach {
+      theDag =>
+        scheduler.run(theDag).onComplete {
+          case Success(logs) =>
+            println("Dag execution successful: ")
+            logs.foreach(println)
+          case Failure(FailedTask(start, failTime, failedLog)) =>
+            println(s"Dag execution failed: $failedLog")
+          case Failure(exception) =>
+            println(s"Unexpected dag execution failure: $exception")
+        }
+    }
+
+    println("waiting for all tasks...")
+    javaExecutor.awaitTermination(5L, TimeUnit.SECONDS)
+    javaExecutor.shutdown()
+
+    println("...done, exiting.")
+
   }
 
 }

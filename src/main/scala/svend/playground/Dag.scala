@@ -67,9 +67,14 @@ case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
   def withTaskRemoved(removedTask: Task): Dag =
     Dag(tasksWithUpstreams
       .removed(removedTask)
-       .view.mapValues(upstreams => upstreams - removedTask)
+      .view.mapValues(upstreams => upstreams - removedTask)
       .toMap
     )
+
+  /**
+   * @return the set of tasks that this task depends on
+   */
+  def dependencies(task: Task): Set[Task] = tasksWithUpstreams(task)
 
   export tasksWithUpstreams.isEmpty
   export tasksWithUpstreams.size
