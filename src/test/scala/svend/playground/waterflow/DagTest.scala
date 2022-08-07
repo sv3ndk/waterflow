@@ -1,30 +1,30 @@
-package svend.playground
+package svend.playground.waterflow
 
 import org.scalacheck.{Gen, Shrink}
 import org.scalatest.TryValues.*
-import org.scalatest.flatspec.*
+import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
-import svend.playground.DataGen.*
-import svend.playground.dag.*
-import svend.playground.dag.Task.*
+import svend.playground.waterflow.*
+import svend.playground.waterflow.Task.*
 
 import scala.util.Random
 
 class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChecks {
 
+  val rand = Random()
+
   behavior of "A DAG"
 
   it must "be valid and empty when built from no dependencies" in {
     // EitherValues allows to access an Either that should be right
-    val emptyDag: Dag = Dag().success.value
 
-    emptyDag.isEmpty mustBe true
-    emptyDag.size mustBe 0
+    TestDataGen.dags.emptyDag.isEmpty mustBe true
+    TestDataGen.dags.emptyDag.size mustBe 0
   }
 
   it must "be valid and of size n when built from any set of n independent tasks" in {
-    forAll(taskListGen) {
+    forAll(TestDataGen.tasks.taskListGen) {
       (tasks: Seq[Task]) => {
         val dependencies = tasks.map(Dependency.independent)
         val validDag = Dag(dependencies).success.value
@@ -36,7 +36,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
   }
 
   it must "have size n when built from any sequence of tasks that depend each on the next one" in {
-    forAll(sequencialTaskGen) {
+    forAll(TestDataGen.tasks.sequencialTaskGen) {
       (dependencies: Seq[Dependency]) => {
         val validDag = Dag(dependencies).success.value
 
@@ -58,10 +58,9 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
   }
 
   it must "result in the same DAG when dependencies are provided in a different order" in {
-    forAll(sequencialTaskGen) {
+    forAll(TestDataGen.tasks.sequencialTaskGen) {
       (dependencies: Seq[Dependency]) => {
-        val shuffled = dependencies.sortBy(_ => Random.nextInt())
-
+        val shuffled = rand.shuffle(dependencies)
         Dag(dependencies).success.value mustBe Dag(shuffled).success.value
       }
     }
@@ -72,7 +71,7 @@ class DagTest extends AnyFlatSpec with must.Matchers with ScalaCheckPropertyChec
   // implicit val noShrink: Shrink[Seq[Dependency]] = Shrink.shrinkAny
 
   it must "refuse any set >= 2 of tasks that form a cycle" in {
-    forAll(cyclicalDependenciesGen) {
+    forAll(TestDataGen.tasks.cyclicalDependenciesGen) {
       (cyclicDependencies: Seq[Dependency]) =>
         val invalidDag = Dag(cyclicDependencies).failure.exception
         invalidDag.getMessage mustBe "The task dependencies contain cycles"

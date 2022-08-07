@@ -1,7 +1,7 @@
-package svend.playground
+package svend.playground.waterflow
 
-import svend.playground.dag.Task.{LocalTask, Noop, SparkTask, SshTask}
-import svend.playground.dag.{Dag, Task}
+import svend.playground.waterflow.Task.{LocalTask, Noop, SparkTask, SshTask}
+import svend.playground.waterflow.{Dag, Task}
 
 import java.time.{Instant, LocalDateTime}
 import scala.annotation.tailrec
@@ -12,7 +12,7 @@ import scala.util.{Failure, Success, Try}
  * The scheduler is responsible for launching the tasks of a DAG when
  * their dependencies have been executed.
  * */
-class Scheduler {
+class Scheduler(val dispatcher: Dispatcher = LocalDispatcher) {
 
   def run(fullDag: Dag)(using ec: ExecutionContext): Future[Seq[RunLog]] = {
 
@@ -28,13 +28,13 @@ class Scheduler {
         remainingDag.aFreeTask() match {
           case Some(freeTask) =>
 
-            // all future tasks hosting the dependencies of this one
+            // all future tasks that needs to be finished before starting the new one
             val allUpstreams: Set[Future[RunLog]] =
               fullDag.dependencies(freeTask).map(runningTasks)
 
             // scheduling this one after all its dependencies
             val futureTask: Future[RunLog] =
-              Future.sequence(allUpstreams).flatMap(_ => Dispatcher.run(freeTask))
+              Future.sequence(allUpstreams).flatMap(_ => dispatcher.run(freeTask))
 
             doRun(
               remainingDag.withTaskRemoved(freeTask),
@@ -64,7 +64,11 @@ object FailedTask {
   def apply(log: String): FailedTask = new FailedTask(Instant.now(), Instant.now(), log)
 }
 
-object Dispatcher {
+trait Dispatcher {
+  def run(task: Task): Future[RunLog]
+}
+
+object LocalDispatcher extends Dispatcher {
 
   // a Runner can run anything, not necessarily in the Task type hierarchy
   trait Runner[T] {

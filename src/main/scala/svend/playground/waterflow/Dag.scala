@@ -1,4 +1,4 @@
-package svend.playground.dag
+package svend.playground.waterflow
 
 import scala.annotation.tailrec
 import scala.collection.MapView
@@ -36,6 +36,8 @@ object Dependency {
  */
 case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
 
+  def tasks: Set[Task] = tasksWithUpstreams.keys.toSet
+  
   /**
    * @return the tasks that currently have no dependencies => can be executed
    */

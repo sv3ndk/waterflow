@@ -1,9 +1,8 @@
-package svend.playground.usecases
+package svend.playground.waterflow.usecases
 
-import svend.playground.dag.{Dag, Dependency}
-import svend.playground.dag.Task.*
-import svend.playground.{FailedTask, Scheduler}
-import svend.playground.usecases.UseCase1.dag
+import svend.playground.waterflow.{Dag, Dependency, FailedTask, Scheduler}
+import svend.playground.waterflow.Task.*
+import UseCase1.dag
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future}
