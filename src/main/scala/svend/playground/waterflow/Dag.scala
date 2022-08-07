@@ -1,5 +1,7 @@
 package svend.playground.waterflow
 
+import com.typesafe.scalalogging.Logger
+
 import scala.annotation.tailrec
 import scala.collection.MapView
 import scala.util.{Failure, Success, Try}
@@ -37,7 +39,7 @@ object Dependency {
 case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
 
   def tasks: Set[Task] = tasksWithUpstreams.keys.toSet
-  
+
   /**
    * @return the tasks that currently have no dependencies => can be executed
    */
@@ -84,11 +86,15 @@ case class Dag private(tasksWithUpstreams: Map[Task, Set[Task]]) {
 
 object Dag {
 
+  val logger = Logger(classOf[Dag.type])
+
   /**
    * Builds a DAG out of a List of Task dependencies.
    * Any Noop Task will not included.
    */
-  def apply(deps: => Seq[Dependency] = Nil): Try[Dag] = {
+  def apply(deps: Seq[Dependency] = Nil): Try[Dag] = {
+
+    logger.info(s"Building a DAG from ${deps.size} dependencies")
 
     // tasks and their upstream tasks, for all tasks having at least one upstream
     val tasksWithUpstream: Map[Task, Set[Task]] = deps

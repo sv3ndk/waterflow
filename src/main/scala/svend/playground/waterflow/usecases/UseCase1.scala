@@ -4,14 +4,18 @@ import svend.playground.waterflow.{Dag, Dependency, FailedTask, Scheduler}
 import svend.playground.waterflow.Task.*
 import UseCase1.dag
 
+import com.typesafe.scalalogging.Logger
+
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 
 /**
- * Example of the API usage
+ * Usage example of the task scheduler
  */
 object UseCase1 {
+
+  val logger = Logger(classOf[UseCase1.type])
 
   lazy val dag: Try[Dag] = Dag {
 
@@ -32,8 +36,8 @@ object UseCase1 {
   }
 
   @main def main(): Unit = {
-    
-    println("Starting Waterflow for use case 1")
+
+    logger.info("Starting Waterflow for use case 1")
     val scheduler = Scheduler()
 
     val javaExecutor = Executors.newFixedThreadPool(2);
@@ -43,20 +47,20 @@ object UseCase1 {
       theDag =>
         scheduler.run(theDag).onComplete {
           case Success(logs) =>
-            println("Dag execution successful: ")
-            logs.foreach(println)
+            logger.info("Dag execution successful: ")
+            logs.foreach(runLog => logger.info(runLog.toString))
           case Failure(FailedTask(start, failTime, failedLog)) =>
-            println(s"Dag execution failed: $failedLog")
+            logger.info(s"Dag execution failed: $failedLog")
           case Failure(exception) =>
-            println(s"Unexpected dag execution failure: $exception")
+            logger.info(s"Unexpected dag execution failure: $exception")
         }
     }
 
-    println("waiting for all tasks...")
+    logger.info("waiting for all tasks...")
     javaExecutor.awaitTermination(5L, TimeUnit.SECONDS)
     javaExecutor.shutdown()
 
-    println("...done, exiting.")
+    logger.info("...done, exiting.")
 
   }
 

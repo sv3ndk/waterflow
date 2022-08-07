@@ -7,6 +7,7 @@ import java.time.{Instant, LocalDateTime}
 import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
+import com.typesafe.scalalogging.Logger
 
 /**
  * The scheduler is responsible for launching the tasks of a DAG when
@@ -14,9 +15,11 @@ import scala.util.{Failure, Success, Try}
  * */
 class Scheduler(val dispatcher: Dispatcher = LocalDispatcher) {
 
+  val logger = Logger(classOf[Scheduler.type])
+
   def run(fullDag: Dag)(using ec: ExecutionContext): Future[Seq[RunLog]] = {
 
-    println(s"Running DAG asynchronously: $fullDag")
+    logger.info(s"Scheduling execution of DAG: $fullDag")
 
     @tailrec
     def doRun(remainingDag: Dag, runningTasks: Map[Task, Future[RunLog]]): Future[Seq[RunLog]] =
