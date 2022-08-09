@@ -9,7 +9,7 @@ import svend.playground.waterflow.Task
 
 import java.time.Instant
 import scala.concurrent.duration.Duration
-import scala.concurrent.{Await, Future}
+import scala.concurrent.{Await, ExecutionContext, Future}
 import scala.util.Random
 
 // Testing the async scheduler with simple Await on the Future[Seq[RunLogs]] returned by run().
@@ -72,11 +72,11 @@ class SchedulerTest extends AnyFlatSpec with must.Matchers with ScalaCheckProper
   }
 
   class SuccessfulDispatcher extends Dispatcher {
-    override def run(task: Task) = Future {
+    override def run(task: Task)(using ec: ExecutionContext) = Future {
       val startTime = Instant.now()
       Thread.sleep(10)
       RunLog(startTime, s"executed task ${task}")
     }
-
   }
+
 }

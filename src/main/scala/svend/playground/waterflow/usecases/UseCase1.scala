@@ -1,10 +1,10 @@
 package svend.playground.waterflow.usecases
 
-import svend.playground.waterflow.{Dag, Dependency, FailedTask, Scheduler}
+import svend.playground.waterflow.{Dag, Dependency, FailedTask, LocalDispatcher, Scheduler}
 import svend.playground.waterflow.Task.*
 import UseCase1.dag
-
 import com.typesafe.scalalogging.Logger
+import svend.playground.waterflow.http.{RemoteDispatcher, TaskHttpServer}
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future}
@@ -36,10 +36,14 @@ object UseCase1 {
   }
 
   @main def main(): Unit = {
-
     logger.info("Starting Waterflow for use case 1")
-    val scheduler = Scheduler()
 
+//    val scheduler = Scheduler(LocalDispatcher)
+
+    val port = 8080
+    val jettyServer = TaskHttpServer.startEmbeddedServer(port)
+    val scheduler = Scheduler(new RemoteDispatcher(s"http://localhost:$port/runtask"))
+    
     val javaExecutor = Executors.newFixedThreadPool(2);
     given ec: ExecutionContext = ExecutionContext.fromExecutor(javaExecutor)
 
@@ -57,11 +61,14 @@ object UseCase1 {
     }
 
     logger.info("waiting for all tasks...")
-    javaExecutor.awaitTermination(5L, TimeUnit.SECONDS)
+    javaExecutor.awaitTermination(10L, TimeUnit.SECONDS)
     javaExecutor.shutdown()
 
-    logger.info("...done, exiting.")
+    logger.info("...done, now shutting down HTTP server.")
+    jettyServer.stop()
+    jettyServer.join()
 
+    logger.info("Leaving now")
   }
 
 }
