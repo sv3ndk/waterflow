@@ -2,7 +2,6 @@ package svend.playground.waterflow
 
 import org.scalacheck.Gen
 import svend.playground.waterflow.*
-import svend.playground.waterflow.Task.*
 
 object TestDataGen {
 

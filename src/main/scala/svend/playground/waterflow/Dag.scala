@@ -7,20 +7,18 @@ import scala.collection.MapView
 import scala.util.{Failure, Success, Try}
 
 
-enum Task(val label: String) {
-
-  case LocalTask(command: String, user: String) extends Task("Local shell task")
-  case SparkTask(jobName: String, master: String, mainClass: String, numCores: Int) extends Task("Spark job task")
-  case SshTask(host: String, port: Int, user: String, shellCommand: String) extends Task("Remote task over SSH")
-
-  /**
-   * Task that does nothing, used as upstream of independent tasks.
-   * */
-  case Noop extends Task("Null task, not doing anything")
-
+// not using scala 3 enum here since they don't play well with json4s atm
+sealed trait Task(val label: String) {
   infix def >>(downstream: Task): Dependency = Dependency(this, downstream)
-
 }
+case class LocalTask(command: String, user: String) extends Task("Local shell task")
+case class SparkTask(jobName: String, master: String, mainClass: String, numCores: Int) extends Task("Spark job task")
+case class SshTask(host: String, port: Int, user: String, shellCommand: String) extends Task("Remote task over SSH")
+
+/**
+ * Task that does nothing, used as upstream of independent tasks.
+ * */
+case object Noop extends Task("Null task, not doing anything")
 
 /**
  * Describes that upstream must be executed before downstream
@@ -28,8 +26,7 @@ enum Task(val label: String) {
 case class Dependency(upstream: Task, downstream: Task)
 
 object Dependency {
-
-  def independent(task: Task) = Dependency(Task.Noop, task)
+  def independent(task: Task) = Dependency(Noop, task)
 }
 
 /**
@@ -99,14 +96,14 @@ object Dag {
     // tasks and their upstream tasks, for all tasks having at least one upstream
     val tasksWithUpstream: Map[Task, Set[Task]] = deps
       .groupBy(_.downstream)
-      .filter((task, _) => task != Task.Noop)
-      .view.mapValues(deps => deps.map(_.upstream).filter(_ != Task.Noop).toSet)
+      .filter((task, _) => task != Noop)
+      .view.mapValues(deps => deps.map(_.upstream).filter(_ != Noop).toSet)
       .toMap
 
     // same as above, augmented with any independent "root" upstream task
     val allTasksWithUpstream: Map[Task, Set[Task]] = deps
       .map(_.upstream)
-      .filter(_ != Task.Noop)
+      .filter(_ != Noop)
       .foldLeft(tasksWithUpstream) {
         case (acc, task) => if acc.contains(task) then acc else acc + (task -> Set.empty)
       }

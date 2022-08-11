@@ -1,4 +1,5 @@
 val scalatraVersion = "3.0.0-M1"
+val json4sVersion = "4.0.5"
 
 lazy val waterflow = project
   .in(file("."))
@@ -14,7 +15,8 @@ lazy val waterflow = project
       "javax.servlet" %  "javax.servlet-api" % "3.1.0",
       "org.eclipse.jetty" % "jetty-webapp" % "9.4.6.v20170531",
 
-      "org.json4s" %% "json4s-jackson" % "4.0.5",
+      "org.json4s" %% "json4s-jackson" % json4sVersion,
+      "org.json4s" %% "json4s-ext" % json4sVersion,
 
       // dead simple blocking HTTP client
       "com.lihaoyi" %% "requests" % "0.7.1",

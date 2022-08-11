@@ -6,7 +6,6 @@ import org.scalatest.flatspec.AnyFlatSpec
 import org.scalatest.matchers.*
 import org.scalatestplus.scalacheck.ScalaCheckPropertyChecks
 import svend.playground.waterflow.*
-import svend.playground.waterflow.Task.*
 
 import scala.util.Random
 

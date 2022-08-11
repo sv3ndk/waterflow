@@ -1,6 +1,6 @@
 package svend.playground.waterflow
 
-import svend.playground.waterflow.Task.{LocalTask, Noop, SparkTask, SshTask}
+import svend.playground.waterflow.{LocalTask, Noop, SparkTask, SshTask}
 import svend.playground.waterflow.{Dag, Task}
 
 import java.time.{Instant, LocalDateTime}

@@ -11,7 +11,7 @@ import javax.servlet.ServletContext
 
 object TaskHttpServer {
 
-  val logger = Logger(TaskHttpServer.getClass.getName)
+  val logger = Logger(classOf[TaskHttpServer.type])
 
   def startEmbeddedServer(port: Int = 8080): Server = {
     logger.info(s"Starting Jetty server on part $port")
@@ -30,6 +30,6 @@ object TaskHttpServer {
 
 class ScalatraBootstrap extends LifeCycle {
   override def init(context: ServletContext): Unit = {
-    context.mount(TaskRunnerServlet(), "/*")
+    context.mount(TaskExecutorServlet(), "/*")
   }
 }

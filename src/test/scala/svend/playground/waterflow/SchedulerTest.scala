@@ -63,7 +63,7 @@ class SchedulerTest extends AnyFlatSpec with must.Matchers with ScalaCheckProper
           else
             (dependencies.head.upstream +: dependencies.map { case Dependency(upStream, downStream) => downStream })
               // Noop tasks should be skipped
-              .filter(_ != Task.Noop)
+              .filter(_ != Noop)
               .map(task => s"executed task $task")
 
         stringLogs mustBe expectedLogs

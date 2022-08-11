@@ -1,8 +1,8 @@
-package svend.playground.waterflow.usecases
+package svend.playground.waterflow.examples
 
 import svend.playground.waterflow.{Dag, Dependency, FailedTask, LocalDispatcher, Scheduler}
-import svend.playground.waterflow.Task.*
-import UseCase1.dag
+import svend.playground.waterflow.*
+import Example1.dag
 import com.typesafe.scalalogging.Logger
 import svend.playground.waterflow.http.{RemoteDispatcher, TaskHttpServer}
 
@@ -13,9 +13,9 @@ import scala.util.{Failure, Success, Try}
 /**
  * Usage example of the task scheduler
  */
-object UseCase1 {
+object Example1 {
 
-  val logger = Logger(classOf[UseCase1.type])
+  val logger = Logger(classOf[Example1.type])
 
   lazy val dag: Try[Dag] = Dag {
 
