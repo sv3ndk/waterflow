@@ -8,14 +8,15 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import com.typesafe.scalalogging.Logger
+import svend.playground.waterflow.http.RemoteDispatcher
 
 /**
  * The scheduler is responsible for launching the tasks of a DAG when
  * their dependencies have been executed.
  * */
-class Scheduler(val dispatcher: Dispatcher = LocalDispatcher) {
+class Scheduler(val dispatcher: TaskDispatcher) {
 
-  val logger = Logger(classOf[Scheduler.type])
+  val logger = Logger(classOf[Scheduler])
 
   def run(fullDag: Dag)(using ec: ExecutionContext): Future[Seq[RunLog]] = {
 
@@ -52,5 +53,24 @@ class Scheduler(val dispatcher: Dispatcher = LocalDispatcher) {
 
     doRun(fullDag, Map.empty)
   }
+}
 
+
+trait TaskDispatcher {
+  def run(task: Task)(using ec: ExecutionContext): Future[RunLog]
+}
+
+/**
+ * Logs produced by the execution of a task 
+ */
+case class RunLog(startTime: Instant, endTime: Instant, log: String)
+
+object RunLog {
+  def apply(startTime: Instant, log: String): RunLog = new RunLog(startTime, Instant.now(), log)
+}
+
+case class FailedTask(startTime: Instant, failTime: Instant, log: String) extends RuntimeException
+
+object FailedTask {
+  def apply(log: String): FailedTask = new FailedTask(Instant.now(), Instant.now(), log)
 }

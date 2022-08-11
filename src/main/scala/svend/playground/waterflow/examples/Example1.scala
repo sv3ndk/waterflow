@@ -1,6 +1,6 @@
 package svend.playground.waterflow.examples
 
-import svend.playground.waterflow.{Dag, Dependency, FailedTask, LocalDispatcher, Scheduler}
+import svend.playground.waterflow.{Dag, Dependency, FailedTask, Scheduler}
 import svend.playground.waterflow.*
 import Example1.dag
 import com.typesafe.scalalogging.Logger
@@ -38,14 +38,12 @@ object Example1 {
   @main def main(): Unit = {
     logger.info("Starting Waterflow for use case 1")
 
-//    val scheduler = Scheduler(LocalDispatcher)
+    val javaExecutor = Executors.newFixedThreadPool(2);
+    given ec: ExecutionContext = ExecutionContext.fromExecutor(javaExecutor)
 
     val port = 8080
     val jettyServer = TaskHttpServer.startEmbeddedServer(port)
     val scheduler = Scheduler(new RemoteDispatcher(s"http://localhost:$port/runtask"))
-    
-    val javaExecutor = Executors.newFixedThreadPool(2);
-    given ec: ExecutionContext = ExecutionContext.fromExecutor(javaExecutor)
 
     dag.foreach {
       theDag =>

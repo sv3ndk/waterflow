@@ -71,7 +71,7 @@ class SchedulerTest extends AnyFlatSpec with must.Matchers with ScalaCheckProper
     }
   }
 
-  class SuccessfulDispatcher extends Dispatcher {
+  class SuccessfulDispatcher extends TaskDispatcher {
     override def run(task: Task)(using ec: ExecutionContext) = Future {
       val startTime = Instant.now()
       Thread.sleep(10)

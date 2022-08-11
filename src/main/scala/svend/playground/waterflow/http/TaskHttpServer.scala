@@ -7,7 +7,9 @@ import org.eclipse.jetty.webapp.WebAppContext
 import org.scalatra.LifeCycle
 import org.scalatra.servlet.ScalatraListener
 
+import java.util.concurrent.Executors
 import javax.servlet.ServletContext
+import scala.concurrent.ExecutionContext
 
 object TaskHttpServer {
 
@@ -29,7 +31,16 @@ object TaskHttpServer {
 }
 
 class ScalatraBootstrap extends LifeCycle {
+  val javaExecutorService = Executors.newFixedThreadPool(2)
+  val executionContext = ExecutionContext.fromExecutor(javaExecutorService)
+  val logger = Logger(classOf[ScalatraBootstrap])
+
   override def init(context: ServletContext): Unit = {
-    context.mount(TaskExecutorServlet(), "/*")
+    context.mount(TaskExecutorServlet(executionContext), "/*")
+  }
+
+  override def destroy(context: ServletContext): Unit = {
+    logger.info("Shutting down Task Executor Execution context")
+    javaExecutorService.shutdown()
   }
 }

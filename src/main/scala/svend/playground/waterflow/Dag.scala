@@ -6,7 +6,6 @@ import scala.annotation.tailrec
 import scala.collection.MapView
 import scala.util.{Failure, Success, Try}
 
-
 // not using scala 3 enum here since they don't play well with json4s atm
 sealed trait Task(val label: String) {
   infix def >>(downstream: Task): Dependency = Dependency(this, downstream)
