@@ -1,10 +1,9 @@
 package svend.playground.waterflow.examples
 
-import svend.playground.waterflow.{Dag, Dependency, RetryableTaskFailure, Scheduler}
-import svend.playground.waterflow.*
-import Example1.dag
 import com.typesafe.scalalogging.Logger
-import svend.playground.waterflow.http.{RemoteTaskRunner, TaskHttpServer}
+import svend.playground.waterflow.examples.Example1.dag
+import svend.playground.waterflow.http.RemoteTaskRunner
+import svend.playground.waterflow.*
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future}
@@ -42,7 +41,6 @@ object Example1 {
     given ec: ExecutionContext = ExecutionContext.fromExecutor(javaExecutor)
 
     val port = 8080
-    val jettyServer = TaskHttpServer.startEmbeddedServer(port)
     val scheduler = Scheduler(new RemoteTaskRunner(s"http://localhost:$port/run"))
 
     dag.foreach {
@@ -61,11 +59,6 @@ object Example1 {
     logger.info("waiting for all tasks...")
     javaExecutor.awaitTermination(10L, TimeUnit.SECONDS)
     javaExecutor.shutdown()
-
-    logger.info("...done, now shutting down HTTP server.")
-    jettyServer.stop()
-    jettyServer.join()
-
     logger.info("Leaving now")
   }
 

@@ -15,18 +15,20 @@ object TaskHttpServer {
 
   val logger = Logger(classOf[TaskHttpServer.type])
 
-  def startEmbeddedServer(port: Int = 8080): Server = {
+//  def startEmbeddedServer(port: Int = 8080): Server = {
+  @main def start(): Unit = {
+    val port = 8080
     logger.info(s"Starting Jetty server on part $port")
 
     val server = new Server(port)
     val context = new WebAppContext()
     context setContextPath "/"
-    context.setResourceBase("src/main/webapp")
+    context.setResourceBase("worker/src/main/webapp")
     context.setInitParameter(ScalatraListener.LifeCycleKey, classOf[ScalatraBootstrap].getName)
     context.addServlet(classOf[DefaultServlet], "/")
     server.setHandler(context)
     server.start()
-    server
+    server.join()
   }
 }
 

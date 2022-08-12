@@ -76,20 +76,3 @@ object Scheduler {
 trait TaskRunner {
   def run(task: Task)(using ec: ExecutionContext): Future[RunLog]
 }
-
-/**
- * Logs produced by the execution of a task 
- */
-case class RunLog(startTime: Instant, endTime: Instant, logs: String)
-
-object RunLog {
-  def apply(startTime: Instant, logs: String): RunLog = new RunLog(startTime, Instant.now(), logs)
-}
-
-case class RetryableTaskFailure(startTime: Instant, failTime: Instant, logs: String) extends RuntimeException
-
-object RetryableTaskFailure {
-  def apply(logs: String): RetryableTaskFailure = this (Instant.now(), logs)
-
-  def apply(failTime: Instant, logs: String): RetryableTaskFailure = new RetryableTaskFailure(Instant.now(), failTime, logs)
-}

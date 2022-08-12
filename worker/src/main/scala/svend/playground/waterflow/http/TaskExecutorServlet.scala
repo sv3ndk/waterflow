@@ -48,9 +48,6 @@ class TaskExecutorServlet(executionContext: ExecutionContext) extends ScalatraSe
   }
 }
 
-case class RunTaskRequest(task: Task)
-case class RunTaskResponse(runLog: RunLog, isSuccess: Boolean)
-
 /**
  * Fake take execution logic that just randomly succeeds or fails (without actually running anything)
  */
