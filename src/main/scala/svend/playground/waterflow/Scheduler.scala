@@ -8,13 +8,13 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import com.typesafe.scalalogging.Logger
-import svend.playground.waterflow.http.RemoteDispatcher
+import svend.playground.waterflow.http.RemoteTaskRunner
 
 /**
  * The scheduler is responsible for launching the tasks of a DAG when
  * their dependencies have been executed.
  * */
-class Scheduler(val dispatcher: TaskDispatcher) {
+class Scheduler(val taskRunner: TaskRunner) {
 
   val logger = Logger(classOf[Scheduler])
 
@@ -34,11 +34,13 @@ class Scheduler(val dispatcher: TaskDispatcher) {
 
             // all future tasks that needs to be finished before starting the new one
             val allUpstreams: Set[Future[RunLog]] =
-              fullDag.dependencies(freeTask).map(runningTasks)
+              fullDag.dependencies(freeTask)
+                .map(runningTasks)
 
             // scheduling this one after all its dependencies
             val futureTask: Future[RunLog] =
-              Future.sequence(allUpstreams).flatMap(_ => dispatcher.run(freeTask))
+              Future.sequence(allUpstreams)
+                .flatMap(_ => Scheduler.withRetry(5, () => taskRunner.run(freeTask)))
 
             doRun(
               remainingDag.withTaskRemoved(freeTask),
@@ -47,30 +49,47 @@ class Scheduler(val dispatcher: TaskDispatcher) {
 
           case None =>
             // This can only happen in case of cyclic dependencies, which Dag is responsible for avoiding
-            Future.failed(FailedTask(s"This is a bug: no free task anymore. Current DAG: $remainingDag"))
+            Future.failed(new RuntimeException(s"This is a bug: no free task anymore. Current DAG: $remainingDag"))
         }
       }
 
     doRun(fullDag, Map.empty)
   }
+
 }
 
+object Scheduler {
 
-trait TaskDispatcher {
+  val logger = Logger(classOf[Scheduler])
+
+  def withRetry[T](maxAttempts: Int, fut: () => Future[T])(using ExecutionContext): Future[T] = {
+    fut()
+      .recoverWith {
+        case RetryableTaskFailure(_, _, logs) if maxAttempts > 0 =>
+          logger.warn(s"failed to run task remotely, $maxAttempts left => retrying. $logs")
+          withRetry(maxAttempts - 1, fut)
+      }
+  }
+
+}
+
+trait TaskRunner {
   def run(task: Task)(using ec: ExecutionContext): Future[RunLog]
 }
 
 /**
  * Logs produced by the execution of a task 
  */
-case class RunLog(startTime: Instant, endTime: Instant, log: String)
+case class RunLog(startTime: Instant, endTime: Instant, logs: String)
 
 object RunLog {
-  def apply(startTime: Instant, log: String): RunLog = new RunLog(startTime, Instant.now(), log)
+  def apply(startTime: Instant, logs: String): RunLog = new RunLog(startTime, Instant.now(), logs)
 }
 
-case class FailedTask(startTime: Instant, failTime: Instant, log: String) extends RuntimeException
+case class RetryableTaskFailure(startTime: Instant, failTime: Instant, logs: String) extends RuntimeException
 
-object FailedTask {
-  def apply(log: String): FailedTask = new FailedTask(Instant.now(), Instant.now(), log)
+object RetryableTaskFailure {
+  def apply(logs: String): RetryableTaskFailure = this (Instant.now(), logs)
+
+  def apply(failTime: Instant, logs: String): RetryableTaskFailure = new RetryableTaskFailure(Instant.now(), failTime, logs)
 }

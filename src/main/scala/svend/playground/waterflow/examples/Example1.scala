@@ -1,10 +1,10 @@
 package svend.playground.waterflow.examples
 
-import svend.playground.waterflow.{Dag, Dependency, FailedTask, Scheduler}
+import svend.playground.waterflow.{Dag, Dependency, RetryableTaskFailure, Scheduler}
 import svend.playground.waterflow.*
 import Example1.dag
 import com.typesafe.scalalogging.Logger
-import svend.playground.waterflow.http.{RemoteDispatcher, TaskHttpServer}
+import svend.playground.waterflow.http.{RemoteTaskRunner, TaskHttpServer}
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
 import scala.concurrent.{ExecutionContext, Future}
@@ -43,7 +43,7 @@ object Example1 {
 
     val port = 8080
     val jettyServer = TaskHttpServer.startEmbeddedServer(port)
-    val scheduler = Scheduler(new RemoteDispatcher(s"http://localhost:$port/runtask"))
+    val scheduler = Scheduler(new RemoteTaskRunner(s"http://localhost:$port/run"))
 
     dag.foreach {
       theDag =>
@@ -51,10 +51,10 @@ object Example1 {
           case Success(logs) =>
             logger.info("Dag execution successful: ")
             logs.foreach(runLog => logger.info(runLog.toString))
-          case Failure(FailedTask(start, failTime, failedLog)) =>
-            logger.info(s"Dag execution failed: $failedLog")
+          case Failure(RetryableTaskFailure(start, failTime, failedLog)) =>
+            logger.error(s"Dag execution failed: $failedLog")
           case Failure(exception) =>
-            logger.info(s"Unexpected dag execution failure: $exception")
+            logger.error(s"Unexpected dag execution failure: $exception")
         }
     }
 
