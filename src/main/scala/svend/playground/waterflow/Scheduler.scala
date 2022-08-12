@@ -1,6 +1,6 @@
 package svend.playground.waterflow
 
-import svend.playground.waterflow.Task.{LocalTask, Noop, SparkTask, SshTask}
+import svend.playground.waterflow.{LocalTask, Noop, SparkTask, SshTask}
 import svend.playground.waterflow.{Dag, Task}
 
 import java.time.{Instant, LocalDateTime}
@@ -8,14 +8,15 @@ import scala.annotation.tailrec
 import scala.concurrent.{ExecutionContext, Future}
 import scala.util.{Failure, Success, Try}
 import com.typesafe.scalalogging.Logger
+import svend.playground.waterflow.http.RemoteTaskRunner
 
 /**
  * The scheduler is responsible for launching the tasks of a DAG when
  * their dependencies have been executed.
  * */
-class Scheduler(val dispatcher: Dispatcher = LocalDispatcher) {
+class Scheduler(val taskRunner: TaskRunner) {
 
-  val logger = Logger(classOf[Scheduler.type])
+  val logger = Logger(classOf[Scheduler])
 
   def run(fullDag: Dag)(using ec: ExecutionContext): Future[Seq[RunLog]] = {
 
@@ -33,11 +34,13 @@ class Scheduler(val dispatcher: Dispatcher = LocalDispatcher) {
 
             // all future tasks that needs to be finished before starting the new one
             val allUpstreams: Set[Future[RunLog]] =
-              fullDag.dependencies(freeTask).map(runningTasks)
+              fullDag.dependencies(freeTask)
+                .map(runningTasks)
 
             // scheduling this one after all its dependencies
             val futureTask: Future[RunLog] =
-              Future.sequence(allUpstreams).flatMap(_ => dispatcher.run(freeTask))
+              Future.sequence(allUpstreams)
+                .flatMap(_ => Scheduler.withRetry(5, () => taskRunner.run(freeTask)))
 
             doRun(
               remainingDag.withTaskRemoved(freeTask),
@@ -46,7 +49,7 @@ class Scheduler(val dispatcher: Dispatcher = LocalDispatcher) {
 
           case None =>
             // This can only happen in case of cyclic dependencies, which Dag is responsible for avoiding
-            Future.failed(FailedTask(s"This is a bug: no free task anymore. Current DAG: $remainingDag"))
+            Future.failed(new RuntimeException(s"This is a bug: no free task anymore. Current DAG: $remainingDag"))
         }
       }
 
@@ -55,69 +58,38 @@ class Scheduler(val dispatcher: Dispatcher = LocalDispatcher) {
 
 }
 
-case class RunLog(startTime: Instant, endTime: Instant, log: String)
+object Scheduler {
+
+  val logger = Logger(classOf[Scheduler])
+
+  def withRetry[T](maxAttempts: Int, fut: () => Future[T])(using ExecutionContext): Future[T] = {
+    fut()
+      .recoverWith {
+        case RetryableTaskFailure(_, _, logs) if maxAttempts > 0 =>
+          logger.warn(s"failed to run task remotely, $maxAttempts left => retrying. $logs")
+          withRetry(maxAttempts - 1, fut)
+      }
+  }
+
+}
+
+trait TaskRunner {
+  def run(task: Task)(using ec: ExecutionContext): Future[RunLog]
+}
+
+/**
+ * Logs produced by the execution of a task 
+ */
+case class RunLog(startTime: Instant, endTime: Instant, logs: String)
 
 object RunLog {
-  def apply(startTime: Instant, log: String): RunLog = new RunLog(startTime, Instant.now(), log)
+  def apply(startTime: Instant, logs: String): RunLog = new RunLog(startTime, Instant.now(), logs)
 }
 
-case class FailedTask(startTime: Instant, failTime: Instant, log: String) extends RuntimeException
+case class RetryableTaskFailure(startTime: Instant, failTime: Instant, logs: String) extends RuntimeException
 
-object FailedTask {
-  def apply(log: String): FailedTask = new FailedTask(Instant.now(), Instant.now(), log)
-}
+object RetryableTaskFailure {
+  def apply(logs: String): RetryableTaskFailure = this (Instant.now(), logs)
 
-trait Dispatcher {
-  def run(task: Task): Future[RunLog]
-}
-
-object LocalDispatcher extends Dispatcher {
-
-  // a Runner can run anything, not necessarily in the Task type hierarchy
-  trait Runner[T] {
-    def run(startTime: Instant, task: T): Future[RunLog]
-  }
-
-  /**
-   * I'm abusing typeclass here just because I wanted an excuse to use them:
-   * Looks up a Runner for any T and uses it to execute the task.
-   * Since all T are actually instances of Task, using ad-hoc inheritance is probably
-   * not the most logical choice (but this is a toy project, I do what I want :) )
-   * */
-
-  // specific logic for running any tasks
-  given Runner[LocalTask] with
-    override def run(startTime: Instant, task: LocalTask): Future[RunLog] =
-      Future.successful {
-        Thread.sleep(100)
-        RunLog(startTime, s"${task.label}: user ${task.user} runs ${task.command}")
-      }
-
-  given Runner[SshTask] with
-    override def run(startTime: Instant, task: SshTask): Future[RunLog] =
-      Future.successful {
-        Thread.sleep(200)
-        RunLog(startTime, s"${task.label}: user ${task.user} runs ${task.shellCommand} on ${task.host}:${task.port}")
-      }
-
-  given Runner[SparkTask] with
-    override def run(startTime: Instant, task: SparkTask): Future[RunLog] =
-      Future.successful {
-        Thread.sleep(1000)
-        RunLog(startTime, s"${task.label}: jobName: ${task.jobName}")
-      }
-
-  def run(task: Task): Future[RunLog] = {
-    task match {
-      case s: SparkTask => dispachToRunner(s)
-      case s: LocalTask => dispachToRunner(s)
-      case s: SshTask => dispachToRunner(s)
-      case Noop => Future.successful(RunLog(Instant.now(), ""))
-    }
-  }
-
-  private def dispachToRunner[T](task: T)(using runner: Runner[T]): Future[RunLog] = {
-    runner.run(Instant.now(), task)
-  }
-
+  def apply(failTime: Instant, logs: String): RetryableTaskFailure = new RetryableTaskFailure(Instant.now(), failTime, logs)
 }
