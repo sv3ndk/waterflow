@@ -66,7 +66,7 @@ object Scheduler {
     fut()
       .recoverWith {
         case RetryableTaskFailure(_, _, logs) if maxAttempts > 0 =>
-          logger.warn(s"failed to run task remotely, $maxAttempts left => retrying. $logs")
+          logger.warn(s"failed to run task remotely, $maxAttempts left => retrying. Error: $logs")
           withRetry(maxAttempts - 1, fut)
       }
   }

@@ -13,7 +13,8 @@ import java.time.Instant
 import scala.concurrent.{ExecutionContext, Future}
 
 /**
- * Task dispatcher requesting the task execution to a remote HTTP server. 
+ * Task dispatcher requesting the task execution to a remote HTTP server
+ * using Haoyi's synchronous Request library
  * */
 class RemoteTaskRunner(taskServerUrl: String) extends TaskRunner {
 

@@ -32,7 +32,9 @@ lazy val scheduler = project
 
     libraryDependencies ++= Seq(
       // dead simple blocking HTTP client
-      "com.lihaoyi" %% "requests" % "0.7.1"
+      "com.lihaoyi" %% "requests" % "0.7.1",
+      // this requires to build my branch of the dispatch project, which supports scala 3
+      "org.dispatchhttp" %% "dispatch-core"   % "1.3.0-SNAPSHOT",
     ),
 
     libraryDependencies ++= loggingLibs,

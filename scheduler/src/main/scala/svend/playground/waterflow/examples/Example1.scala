@@ -2,7 +2,7 @@ package svend.playground.waterflow.examples
 
 import com.typesafe.scalalogging.Logger
 import svend.playground.waterflow.examples.Example1.dag
-import svend.playground.waterflow.http.RemoteTaskRunner
+import svend.playground.waterflow.http.{RemoteDispatchTaskRunner, RemoteTaskRunner}
 import svend.playground.waterflow.*
 
 import java.util.concurrent.{ExecutorService, Executors, TimeUnit}
@@ -41,7 +41,12 @@ object Example1 {
     given ec: ExecutionContext = ExecutionContext.fromExecutor(javaExecutor)
 
     val port = 8080
-    val scheduler = Scheduler(new RemoteTaskRunner(s"http://localhost:$port/run"))
+
+    // using Haoyi's Request lib:
+//    val scheduler = Scheduler(new RemoteTaskRunner(s"http://localhost:$port/run"))
+
+    // using Dispatch AsyncHttpClient wrapper
+    val scheduler = Scheduler(new RemoteDispatchTaskRunner(s"http://localhost:$port/run"))
 
     dag.foreach {
       theDag =>
